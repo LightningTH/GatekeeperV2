@@ -995,6 +995,13 @@ class DBUpdate:
         if Version == None:
             self.DBConfig.AddSetting('DB_Version', 1.0)
 
+        #Lightning: No comments, debatable. However one of the rare times
+        #if without elif for the same variable check makes sense as you need
+        #repeated updates
+        #I personally prefer the flipped logic as I don't like constants at
+        #the beginning of an if statement but have seen other code written with
+        #constants first
+        #if Version < 1.1:
         if 1.1 > Version:
             self.logger.info('**ATTENTION** Updating DB to Version 1.1')
             self.DBConfig.AddSetting('Guild_ID', None)
@@ -1246,6 +1253,7 @@ class DBUpdate:
             sys.exit(-1)
         
     def banner_name_conversion(self):
+        #Lightning: need comments about why the 2 try/except that pass/return
         try:
             SQL = 'select * from ServerEmbed limit 1'
             self.DB._execute(SQL, ())

@@ -75,6 +75,7 @@ class StatusView(View):
 
     async def on_timeout(self):
         """This Removes all the Buttons after timeout has expired"""
+        #Lightning: ^- all buttons or this button? This also says StatusView as the class name and what it inherits
         self.stop()
 
 def banner_file_handler(image:Image.Image):
@@ -186,6 +187,10 @@ class Banner_Modal(Modal):
         self._input_type = input_type
         super().__init__(title= title, timeout= timeout, custom_id= custom_id)
 
+        #Lightning: What happens if input_type is not color or int?
+        #Also, both if statements are checking the same thing, should probably be if/elif or if/else, etc
+        #otherwise if input_type is color it will still check if it is int instead of skipping over that check
+        #and logic. Same logic for other if areas elsewhere in the code
         if self._input_type == 'color':
             self._color_code_input = Banner_Color_Input(edited_db_banner= self._edited_db_banner, select_value= self._select_value, view= self._banner_view)
             self.add_item(self._color_code_input)
@@ -205,6 +210,7 @@ class Banner_Modal(Modal):
                 await interaction.response.send_message(f'Please provide a Number only. {self._int_code_input.value}', ephemeral= True, delete_after= self._client.Message_Timeout)
                 
         else:
+            #Lightning: this runs under color due to the if check above for int not being elif, is this intended?
             await interaction.response.defer()
         await self._banner_message.edit(attachments= [banner_file_handler(BC.Banner_Generator(self._amp_server, self._edited_db_banner)._image_())], view= self._banner_view)
  
@@ -222,6 +228,9 @@ class Banner_Color_Input(TextInput):
             self._value = self._value[1:]
 
         #Validate if Hex Color Code.
+        #Lightning, comment is good about hex color code however may help to extend the comment with the 4 variations you are
+        #allowing in hex. Example:
+        #Validate if Hex Color Code: rgb rgba rrggbb rrggbbaa
         if len(self._value) in [3,4,6,8] and re.search(f'([0-9a-f]{{{len(self._value)}}})$', self._value):
             self._banner_view.logger.dev(f'Set attr for {self._edited_db_banner} {self._select_value} # {self._value}')
             setattr(self._edited_db_banner, self._select_value, '#' + self._value)

@@ -338,6 +338,9 @@ class AMPInstance():
 
             self.logger.dev(f'Session {"has" if check else "is missing" } permisson node: {perm}')
             
+            #Lightning: maybe this for avoiding indentation?
+            #if check:
+            #  continue
             if check != True:
                 if self.APIModule == 'AMP': #AKA the main (InstanceID == 0)
                     self.logger.warning(f'Gatekeeper is missing the permission __{perm}__ Please check under Configuration -> User Management for {self.AMPHandler.tokens.AMPUser}.')
@@ -474,6 +477,7 @@ class AMPInstance():
                     self.logger.error(f'The API Call {APICall} failed because of Status: {post_req.json()}')
                     return False
 
+        #Lightning: elif?
         if "Title" in post_req.json():
             if type(post_req.json()['Title']) == str and post_req.json()['Title'] == 'Unauthorized Access':
                 self.logger.error(f'["Title"]: The API Call {APICall} failed because of {post_req.json()}')
@@ -535,8 +539,14 @@ class AMPInstance():
             self.logger.error(f'Failed to update {self.FriendlyName} attributes, API Call returned {result}')
             return
         #serverlist = {}
-        amp_instance_keys = self.AMPHandler.AMP_Instances.keys()
+        amp_instance_keys = list(self.AMPHandler.AMP_Instances.keys())
     
+        #Lightning: o_O
+        #no comments and feel like this is over complex or "too busy"
+        #see original code vs what exists now, please double check logic/params were not messed up
+        #double check usage of this function as a potential edge case of adding a new instance and deleting
+        #an old instance resulting in the return of the friendlyname and never removing the now invalid instance
+        #until a new cycle of this function
         available_instances = []
         if len(result["result"][0]['AvailableInstances']) != 0:
             for Target in result["result"]:
@@ -544,41 +554,35 @@ class AMPInstance():
                     
                     #This exempts the AMPTemplate Gatekeeper *hopefully*
                     flag_reg = re.search("(gatekeeper)", amp_instance['FriendlyName'].lower())
-                    if flag_reg != None:
-                        if flag_reg.group():
-                            continue 
+                    if flag_reg != None and flag_reg.group():
+                        continue
                     
                     if amp_instance['Module'] == 'ADS':
                         continue
 
                     available_instances.append(amp_instance['InstanceID'])
-                    if amp_instance['InstanceID'] not in amp_instance_keys:
-                        self.logger.info(f'Found a New AMP Instance since Startup; Creating AMP Object for {amp_instance["FriendlyName"]}')
-                        if amp_instance['DisplayImageSource'] in self.AMPHandler.AMP_Modules:
-                            name = str(self.AMPHandler.AMP_Modules[amp_instance["DisplayImageSource"]]).split("'")[1]
-                            self.logger.dev(f'Loaded __{name}__ for {amp_instance["FriendlyName"]}')
-                            #def __init__(self, instanceID = 0, serverdata = {}, Index = 0, default_console = False, Handler = None):
-                            server = self.AMPHandler.AMP_Modules[amp_instance['DisplayImageSource']](instanceID= amp_instance['InstanceID'], serverdata= amp_instance, Handler= self.AMPHandler)
-                            self.AMPHandler.AMP_Instances[server.InstanceID] = server
-                            return amp_instance['FriendlyName'] 
+                    if amp_instance['InstanceID'] in amp_instance_keys:
+                        continue
 
-                        else:
-                            self.logger.dev(f'Loaded __AMP_Generic__ for {amp_instance["FriendlyName"]}')
-                            server = self.AMPHandler.AMP_Modules['Generic'](instanceID= amp_instance['InstanceID'], serverdata= amp_instance, Handler= self.AMPHandler)
-                            self.AMPHandler.AMP_Instances[server.InstanceID] = server
-                            return amp_instance['FriendlyName']
-                        
-        remove_keys = []
+                    self.logger.info(f'Found a New AMP Instance since Startup; Creating AMP Object for {amp_instance["FriendlyName"]}')
+                    if amp_instance['DisplayImageSource'] in self.AMPHandler.AMP_Modules:
+                        name = str(self.AMPHandler.AMP_Modules[amp_instance["DisplayImageSource"]]).split("'")[1]
+                        image_source = amp_instance['DisplayImageSource']
+                    else:
+                        name = "Generic"
+                        image_source = "Generic"
+
+                    self.logger.dev(f'Loaded __{name}__ for {amp_instance["FriendlyName"]}')
+                    server = self.AMPHandler.AMP_Modules[image_source](instanceID= amp_instance['InstanceID'], serverdata= amp_instance, Handler= self.AMPHandler)
+                    self.AMPHandler.AMP_Instances[server.InstanceID] = server
+                    return amp_instance['FriendlyName']
+
+        #Lightning: By making the dict_keys an actual list above it seperates it from the AMP_Instances object
+        #which would allow the pop() to succeed as the list being iterated is no longer tied to the original dictionary
         for instanceID in amp_instance_keys:
             if instanceID not in available_instances:
-                remove_keys.append(instanceID)
                 amp_server = self.AMPHandler.AMP_Instances[instanceID]
                 self.logger.warning(f'Found the AMP Instance {amp_server.InstanceName} that no longer exists.')
-        
-        
-        if len(remove_keys):
-            for instanceID in remove_keys:
-                amp_server = self.AMPHandler.AMP_Instances[instanceID]
                 self.logger.warning(f'Removing {amp_server.InstanceName} from `Gatekeepers` available Instance list.')
                 self.AMPHandler.AMP_Instances.pop(instanceID)
 
@@ -589,19 +593,17 @@ class AMPInstance():
             server = self.AMPHandler.AMP_Instances[instance]
             
             #Lets validate our ADS Running before we check for console threads.
-            if server.Running and server._ADScheck() and server.ADS_Running:
-                #Lets check if the Console Thread is running now.
-                if server.Console.console_thread_running == False:
-                    self.logger.info(f'{server.FriendlyName}: Starting Console Thread, Instance Online: {server.Running} and ADS Online: {server.ADS_Running}')
-                    server.Console.console_thread_running = True
+            if server.Running and server._ADScheck() and server.ADS_Running and (not server.Console.console_thread_running):
+                #start the Console Thread.
+                self.logger.info(f'{server.FriendlyName}: Starting Console Thread, Instance Online: {server.Running} and ADS Online: {server.ADS_Running}')
+                server.Console.console_thread_running = True
 
-                    if not server.Console.console_thread.is_alive():
-                        server.Console.console_thread.start()
+                if not server.Console.console_thread.is_alive():
+                    server.Console.console_thread.start()
                     
-            if not server.Running or server.Running and not server.ADS_Running:
-                if server.Console.console_thread_running == True:
-                    self.logger.error(f'{server.FriendlyName}: Shutting down Console Thread, Instance Online: {server.Running}, ADS Online: {server.ADS_Running}.')
-                    server.Console.console_thread_running = False
+            elif ((not server.Running) or (not server.ADS_Running)) and server.Console.console_thread_running:
+                self.logger.error(f'{server.FriendlyName}: Shutting down Console Thread, Instance Online: {server.Running}, ADS Online: {server.ADS_Running}.')
+                server.Console.console_thread_running = False
 
     def getInstances(self) -> dict:
         """This gets all Instances on AMP."""
@@ -690,7 +692,9 @@ class AMPInstance():
             CPU = str(result['Metrics']['CPU Usage']['RawValue']) #This is a percentage
             self.Metrics = result['Metrics']
             return TPS, Users, CPU, Memory, Uptime
-    
+
+        #Lightning: Are you ok returning nothing here? Does the caller expect something?
+
     def getLiveStatus(self) -> bool:
         """Server is Online and Proper AMP Permissions. \n
         So we check TPS/State to make sure the Dedicated Server is actually 'live'. \n
@@ -706,7 +710,10 @@ class AMPInstance():
                 return True
             else:
                 return False
-                
+
+        #Lightning: if result is false you don't return a bool......
+        #Might I note a pattern
+
     def getUsersOnline(self) -> tuple[str, str]:
         """Returns Number of Online Players over Player Limit. \n
         `eg 2/10`"""
@@ -1026,6 +1033,7 @@ class AMPInstance():
         """Base Function for Broadcast Messages to AMP ADS"""
         return
 
+#Lightning: AMP.py is so large might this belong in it's own file now?
 class AMPHandler():
     def __init__(self, args:Namespace):
         self.args = args
@@ -1089,6 +1097,7 @@ class AMPHandler():
         reset = False
 
         if not self.args.token:
+            #Lightning: but what if I want to keep a copy of tokenstemplate.py?
             if self._cwd.joinpath('tokenstemplate.py').exists() or not self._cwd.joinpath('tokens.py').exists():
                 self.logger.critical('**ERROR** Please rename your tokenstemplate.py file to tokens.py before trying again.')
                 reset = True
@@ -1102,27 +1111,31 @@ class AMPHandler():
 
         self.tokens = tokens
         if not tokens.AMPurl.startswith('http://') and not tokens.AMPurl.startswith('https://'):
+            #Lightning: "my amp url fails and it didn't tell me what is wrong", should tell them what it didn't find or needs to start with
+            #but keep short. btw typo
+            #Maybe "Please verify your AMPurl, missing http:// or https://"
             self.logger.critical('** Please verifiy your AMPurl. **')
             reset = True
             
+        #Lightning: If you are force removing the slash then why even warn if it can't ever break anything?
+        #Silent fixing simple things like this is ok
         if tokens.AMPurl.endswith('/'):
             self.logger.warning(f'** Please remove the forward slash at the end of {tokens.AMPurl} **, we temporarily did it for you. This may break things...')
             tokens.AMPurl = tokens.AMPurl[:-1]
-        
-        if len(tokens.AMPAuth) < 7:
-            if tokens.AMPAuth == '':
-                self.AMP2FA = False
-                return
-            else:
-                self.logger.critical('**ERROR** Please use your 2 Factor Generator Code (Should be over 25 characters long), not the 6 digit numeric generated code that expires with time.')
-                reset = True
+
+        #Lightning: Less complexity and no early exit via AMPAuth == '' but invalid URL resutling in reset not triggering
+        if tokens.AMPAuth == '':
+            self.AMP2FA = False
+        elif len(tokens.AMPAuth) < 7:
+            self.logger.critical('**ERROR** Please use your 2 Factor Generator Code (Should be over 25 characters long), not the 6 digit numeric generated code that expires with time.')
+            reset = True
+        else:
+            self.AMP2FA = True
 
         if reset:
             input("Press any Key to Exit")
             sys.exit(0)
 
-        self.AMP2FA = True
-    
     def moduleHandler(self):
         """AMPs class Loader for specific server types."""
         self.logger.dev('AMPHandler moduleHandler loading modules...')
@@ -1172,6 +1185,9 @@ class AMPHandler():
                     if amp_instance['Module'] == 'ADS':
                         continue
 
+                    #Lightning: see _instancevalidation above for better example logic
+                    #if both are using the same logic then pull some of this logic (whole for loop?)
+                    #into a common function both use. Will take some effort but would avoid 30'ish lines of duplication
                     if amp_instance['DisplayImageSource'] in self.AMP_Modules:
                         name = str(self.AMP_Modules[amp_instance["DisplayImageSource"]]).split("'")[1]
                         self.logger.dev(f'Loaded __{name}__ for {amp_instance["FriendlyName"]}')
@@ -1196,6 +1212,7 @@ def getAMPHandler(args: Namespace= False) -> AMPHandler:
         Handler = AMPHandler(args= args)
     return Handler
 
+#Lightning: Could be it's own file ;)
 class AMPConsole:
     FILTER_TYPE_CONSOLE = 0
     FILTER_TYPE_EVENT = 1
@@ -1265,6 +1282,8 @@ class AMPConsole:
                 self.AMP_Console_Threads[self.AMPInstance.InstanceID] = self.AMPHandler.AMP_Console_Modules['Generic']
                 self.logger.critical(f'**ERROR** Failed to Start the Console for {self.AMPInstance.FriendlyName}...with {e}')
 
+    #Lightning: Maybe a better name indicating it run's (run_console_parse) or that it is a function a thread calls? console_parse_thread?
+    #as then it indicates it runs forever
     def console_parse(self):
         """This handles AMP Console Updates; turns them into bite size messages and sends them to Discord"""
         time.sleep(5)

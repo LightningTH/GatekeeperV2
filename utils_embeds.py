@@ -103,6 +103,17 @@ class botEmbeds():
             server = self.AMPInstances[server]
 
             db_server = self.DB.GetServer(InstanceID= server.InstanceID)
+            #Lightning: Could flip this if statement logic and remove an indentation
+            #with or statements the first true part will avoid the second part of the statement
+            #so if db_server is none there is no risk of a crash due to attempting to access Hidden
+            #saving an additional if statement check below for continuing
+            #if db_server == None or db_server.Hidden == 1:
+            #   continue
+            #-vs-
+            #if db_server == None:
+            #   continue
+            #if db_server.Hidden == 1:
+            #   continue
             if db_server != None and db_server.Hidden != 1:
 
                 instance_status = 'Offline'
@@ -111,9 +122,17 @@ class botEmbeds():
                 User_list = None
                 if server.Running:
                     instance_status = 'Online'
+                    #Lightning: server is online, check if ads is good
                     if server._ADScheck() and server.ADS_Running:
                         dedicated_status = 'Online'
+                        #Lightning: go get all users to display
                         Users = server.getUsersOnline()
+
+                        #Lightning: so what happens if user list is 1? user_list will be None
+                        #and then used lower for players online but is a None object
+                        #fairly certain such a join with 1 entry won't have the join'd data
+                        #but double check in a python terminal
+                        #parens aren't required either fyi
                         if len(server.getUserList()) > 1:
                             User_list = (', ').join(server.getUserList())
 
@@ -201,6 +220,8 @@ class botEmbeds():
         db_server = self.DB.GetServer(InstanceID= server.InstanceID)
 
         embed_color = 0x71368a
+        #Lightning: Another example of inverted logic helps with extra indentation
+        #granted nothing has been seen that is extremely indented so not bad
         if db_server != None:
             if db_server.Discord_Role != None:
                 db_server_role = context.guild.get_role(int(db_server.Discord_Role))
@@ -230,17 +251,27 @@ class botEmbeds():
         dbsettings_list = self.DBConfig.GetSettingList()
         settings = {}
         for setting in dbsettings_list:
+            #Lightning: these two lines could be combined
             config = self.DBConfig.GetSetting(setting)
             settings[setting] = config
 
         embed=discord.Embed(title= f'**Bot Settings**', color= 0x71368a)
         embed.set_thumbnail(url= context.guild.icon)
         embed.add_field(name='\u1CBC\u1CBC', value='\u1CBC\u1CBC', inline= False)
+        #Lightning: this could be altered to avoid the loop above, maybe something like...
+        #for key in self.DBConfig.GetSettingList():
+        #  value = self.dBConfig.GetSetting(key)
+        #  ...
+        #
+        #avoids making the dictionary and in a lot of ways simplifies the logic when attempting to understand it
         for key, value in settings.items():
             if type(value) == str and value != 'None' and  value.isnumeric():
                 value = int(value)
                 embed.add_field(name= f'{key.replace("_"," ")}', value= value, inline= False)
 
+            #Lightning: If you don't care about the original capitalization of key then just do
+            #key = key.lower()
+            #and check key, also if/elif/elif/elif/... logic
             if key.lower() == 'whitelist_wait_time':
                 embed.add_field(name= 'Whitelist Wait Time:', value= f'{value} Minutes', inline= False)
 
@@ -284,6 +315,9 @@ class botEmbeds():
                 
                 embed.add_field(name= 'Whitelist Request Channel', value= f'{value.name if value != None else value}', inline= False)
 
+            #Lightning: If the logic above handled a string of value that isn't none and is an int then how does this
+            #ever pass? This is now int compared to str
+            #also, should this be under an else statement when key doesn't match anything else?
             if value == '0' or value == '1':
                 value = bool(value)
                 embed.add_field(name= f'{list(key).replace("_", " ")}', value= f'{value}', inline= False)

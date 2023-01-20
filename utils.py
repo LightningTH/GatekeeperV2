@@ -48,6 +48,8 @@ async def async_rolecheck(context: Union[commands.Context, discord.Interaction, 
     logger = logging.getLogger(__name__)
     logger.dev(f'Permission Context command node {perm_node if perm_node != None else str(context.command).replace(" ",".")}')
    
+    #Lightning: Need more comments about what things are doing.
+    #Doesn't have to be paragraphs, just descriptive of purpose. See roleparse as a good example
     author = context
     if type(context) != discord.Member:
         if hasattr(context, 'author'):
@@ -287,6 +289,8 @@ class botUtils():
         if db_server.Avatar_url.startswith("https://") or db_server.Avatar_url.startswith("http://"):
             if db_server.Avatar_url not in self.AMPServer_Avatar_urls:
                 await asyncio.sleep(.5)
+                #Lightning: Example comment
+                #Verify URL is valid
                 async with aiohttp.ClientSession() as session:
                     async with session.get(db_server.Avatar_url) as response:
                         if response.status == 200:
@@ -338,6 +342,7 @@ class botUtils():
         self.logger.dev(f'Found Steam ID {steam_id}')
         return steam_id
 
+    #Lightning: Should maintain naming conventions. Above names use _ between words, below ones don't
     def roleparse(self, parameter:str, context:commands.Context, guild_id:int) -> Union[discord.Role, None]: 
         """This is the bot utils Role Parse Function\n
         It handles finding the specificed Discord `<role>` in multiple different formats.\n
@@ -492,7 +497,9 @@ class botUtils():
         
         await context.send(f'Well this is awkward, it appears the **{amp_server.FriendlyName if amp_server.FriendlyName != None else amp_server.InstanceName}** is `Offline`.', ephemeral=True, delete_after= self._client.Message_Timeout)
         return False
-                    
+
+#Lightning: Example comment
+#Maintain a global bot permission object  
 bPerms = None
 def get_botPerms():
     global bPerms
@@ -515,6 +522,7 @@ class botPerms():
         self.logger.info('**Success** Loading Bot Permissions')
 
     def validate_and_load(self):
+        #Lightning: No docstring, if docstring is not desired then at least provide a comment at the beginning of purpose
         self.json_file = pathlib.Path.cwd().joinpath('bot_perms.json')
         if self.json_file.stat().st_mtime > self._last_modified:
             try:

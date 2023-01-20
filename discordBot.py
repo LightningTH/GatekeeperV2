@@ -96,6 +96,7 @@ class Gatekeeper(commands.Bot):
     async def update_loop(self):
         self.logger.warn(f'Waiting to Update Bot Version to {Version}...')
         await client.wait_until_ready()
+        #Lightning: typo below
         self.logger.warn(f'Currently Updatting Bot Version to {Version}...')
         self.DBConfig.SetSetting('Bot_Version', Version)
         if self.guild_id != None:
@@ -162,6 +163,16 @@ async def bot_permissions(context:commands.Context, permission: Choice[int]):
     """Set the Bot to use Default Permissions or Custom"""
     client.logger.command(f'{context.author.name} used Bot Permissions...')
 
+    #Lightning: if/elif or maybe if/else
+    #else is useful when it can't be anything else and should another option ever exist
+    #prevents situations where a new value is allowed and no code runs causing crashes
+    #now I have seen more robust code that does
+    #if a == 0:
+    #elif a == 1:
+    #else:
+    #  some_code_that_throws_a_massive_error_message_and_exits
+    #
+    #but I usually see that as overkill for personal projects
     if permission.value == 0:
         await context.send(f'You have selected `Default` permissions, removing permission commands...', ephemeral= True, delete_after= client.Message_Timeout)
         parent_command = client.get_command('user')
@@ -174,7 +185,7 @@ async def bot_permissions(context:commands.Context, permission: Choice[int]):
         await context.send(f'Visit https://github.com/k8thekat/GatekeeperV2/blob/main/PERMISSIONS.md', ephemeral= True, delete_after= client.Message_Timeout)
         if not await client.permissions_update():
             return await context.send(f'Error loading the Permissions Cog, please check your Console for errors.', ephemeral= True, delete_after= client.Message_Timeout)
-        
+  
     client.tree.copy_global_to(guild= client.get_guild(client.guild_id))
     await client.tree.sync(guild= client.get_guild(client.guild_id))
     client.DBConfig.Permissions = permission.name
@@ -199,6 +210,8 @@ async def bot_utils(context:commands.Context):
 @utils.role_check()
 async def clear(context: commands.Context, channel: discord.abc.GuildChannel = None, amount: app_commands.Range[int, 0, 100] = 50, all: Choice[int] = 1):
     """Cleans up Messages sent by the Kuma. Limit 100"""
+    #Lightning: docstring is wrong, example case of paying attention to updating and rewriting docstrings
+    #and comments when code is altered
     client.logger.info(f'{context.author.name} used {context.command.name}...')
     client.context = context
     await context.defer()
@@ -342,6 +355,9 @@ async def bot_utils_sync(context:commands.Context, local: Choice[int]= True, res
         else:
             return await context.sned('**ERROR** You do not have permission to reset the commands.', ephemeral= True, delete_after= client.Message_Timeout)
 
+    #Lightning: A good example of where parens () are handy, can't ever over use them in these situations
+    #otherwise it is ambiguous of evaluation order as "and" and "or" have same evaluation level (unlike ==, <, +, etc)
+    #if ((type(local) == bool) and (local == True)) or ((type(local) == Choice) and (local.value() == 1)):
     if type(local) == bool and local == True or type(local) == Choice and local.value() == 1:
         #Local command tree sync
         client.tree.copy_global_to(guild=context.guild)
@@ -366,6 +382,7 @@ async def bot_cog_loader(context:commands.Context, cog:str):
     """Load a specific cog, must provide path using '.' as a seperator. eg: 'cogs.my_cog'"""
     client.logger.command(f'{context.author.name} used Bot Cog Load Function...')
 
+    #Lightning: this works? try/except/else? I thought else had to be part of an if statement
     try:
         await client.load_extension(name= cog)
     except Exception as e:
@@ -380,6 +397,7 @@ async def bot_cog_unloader(context:commands.Context, cog: str):
     """Un-load a specific cog."""
     client.logger.command(f'{context.author.name} used Bot Cog Unload Function...')
     
+    #Lightning: see above........
     try:
         my_cog = client.cogs[cog]
         await my_cog.cog_unload()
